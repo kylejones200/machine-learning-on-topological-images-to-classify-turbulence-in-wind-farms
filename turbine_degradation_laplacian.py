@@ -4,201 +4,93 @@ Power Curve Degradation Detection Using Persistent Laplacians
 Tracks gradual performance degradation using spectral signatures.
 """
 
-import logging
-import os
-from typing import Any, Dict, List, Tuple
-
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import requests
-from io import StringIO
-from pathlib import Path
-
+import matplotlib.pyplot as plt
 from ripser import ripser
-from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import (
-    accuracy_score,
-    classification_report,
-    f1_score,
-    roc_auc_score,
-)
+from sklearn.svm import SVC
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, classification_report, f1_score, roc_auc_score
 from sklearn.neighbors import NearestNeighbors
 from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import eigsh
-
+from pathlib import Path
 import warnings
-
-warnings.filterwarnings("ignore")
-
-logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
+warnings.filterwarnings('ignore')
 
 np.random.seed(42)
 
-# NREL API configuration (real data)
-NREL_API_URL = (
-    "https://developer.nrel.gov/api/wind-toolkit/v2/wind/wtk-bchrrr-v1-0-0-download.csv"
-)
-DEFAULT_NREL_EMAIL = "kyletjones@gmail.com"
-
-
-def _get_nrel_api_key() -> str:
-    """Return the NREL API key from the environment."""
-    api_key = os.environ.get("NREL_API_KEY")
-    if not api_key:
-        raise RuntimeError(
-            "NREL_API_KEY environment variable is not set. "
-            "Export your key, e.g. `export NREL_API_KEY='your-key-here'`."
-        )
-    return api_key
-
-
-def _normalize_nrel_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Normalize NREL Wind Toolkit column names to the ones used in this script.
-    """
-    cols = {c.lower(): c for c in df.columns}
-
-    # Timestamp
-    ts_col = None
-    for key in ['timestamp', 'time', 'datetime', 'date_time']:
-        if key in cols:
-            ts_col = cols[key]
-            break
-    if ts_col is None:
-        raise ValueError(f"Could not find a timestamp column in NREL data. Columns: {list(df.columns)}")
-
-    # Wind speed
-    ws_col = None
-    for key in ['wind_speed', 'windspeed', 'windspeed_80m', 'wind_speed_80m']:
-        if key in cols:
-            ws_col = cols[key]
-            break
-    if ws_col is None:
-        raise ValueError("Could not find a wind speed column in NREL data.")
-
-    # Wind direction
-    wd_col = None
-    for key in ['wind_direction', 'winddir', 'wind_direction_80m']:
-        if key in cols:
-            wd_col = cols[key]
-            break
-    if wd_col is None:
-        raise ValueError("Could not find a wind direction column in NREL data.")
-
-    # Temperature
-    temp_col = None
-    for key in ['air_temperature', 'temperature', 'temperature_80m']:
-        if key in cols:
-            temp_col = cols[key]
-            break
-    if temp_col is None:
-        raise ValueError("Could not find a temperature column in NREL data.")
-
-    df = df.rename(
-        columns={
-            ts_col: 'timestamp',
-            ws_col: 'windspeed_80m',
-            wd_col: 'wind_direction',
-            temp_col: 'temperature',
-        }
-    )
-    df['timestamp'] = pd.to_datetime(df['timestamp'])
-    return df[['timestamp', 'windspeed_80m', 'wind_direction', 'temperature']]
-
-
-def fetch_nrel_wind_data(
-    lat: float = 41.5,
-    lon: float = -100.5,
-    years: List[int] | None = None,
-    email: str = DEFAULT_NREL_EMAIL,
-) -> pd.DataFrame:
-    """Fetch real wind data from the NREL Wind Toolkit API."""
-    if years is None:
-        years = [2010, 2011, 2012]
-
-    api_key = _get_nrel_api_key()
-    logger.info(
-        "Requesting NREL Wind Toolkit data lat=%.3f lon=%.3f years=%s", lat, lon, years
-    )
-
-    all_frames: List[pd.DataFrame] = []
-    for year in years:
-        params: Dict[str, Any] = {
-            "api_key": api_key,
-            "lat": lat,
-            "lon": lon,
-            "year": year,
-            "interval": 5,
-            "email": email,
-        }
-        try:
-            response = requests.get(NREL_API_URL, params=params, timeout=60)
-            response.raise_for_status()
-        except requests.RequestException as exc:
-            logger.error("NREL request failed for year=%s: %s", year, exc)
-            raise RuntimeError(
-                f"NREL API request failed for year {year}. See logs for details."
-            ) from exc
-
-        year_df = pd.read_csv(StringIO(response.text))
-        year_df = _normalize_nrel_columns(year_df)
-        all_frames.append(year_df)
-
-    df = (
-        pd.concat(all_frames, axis=0)
-        .sort_values("timestamp")
-        .reset_index(drop=True)
-    )
-    logger.info("Fetched %d NREL records spanning %d year(s)", len(df), len(years))
+def fetch_nrel_wind_data(lat=41.5, lon=-100.5, years=[2010, 2011, 2012]):
+    """Simulate NREL Wind Toolkit data fetch."""
+    print(f"Simulating NREL wind data fetch for location ({lat}, {lon})")
+    
+    n_records = 365 * 24 * 12 * len(years)
+    timestamps = pd.date_range(start=f'{years[0]}-01-01', periods=n_records, freq='5min')
+    
+    hours = np.array([t.hour + t.minute/60 for t in timestamps])
+    days = np.array([t.dayofyear for t in timestamps])
+    
+    seasonal = 2 * np.sin(2 * np.pi * days / 365)
+    diurnal = 1.5 * np.sin(2 * np.pi * hours / 24)
+    
+    windspeed_80m = 8.5 + seasonal + diurnal + np.random.normal(0, 2, n_records)
+    windspeed_80m = np.clip(windspeed_80m, 0, 25)
+    
+    wind_direction = 180 + 60 * np.sin(2 * np.pi * days / 365) + np.random.normal(0, 15, n_records)
+    wind_direction = wind_direction % 360
+    
+    temperature = 15 + 10 * np.cos(2 * np.pi * days / 365) + np.random.normal(0, 3, n_records)
+    
+    df = pd.DataFrame({
+        'timestamp': timestamps,
+        'windspeed_80m': windspeed_80m,
+        'wind_direction': wind_direction,
+        'temperature': temperature
+    })
+    
+    print(f"Fetched {len(df)} records spanning {len(years)} years")
     return df
 
-DEGRADATION_CUT_IN_SPEED_MPS = 3.0
-DEGRADATION_RATED_SPEED_MPS = 12.0
-DEGRADATION_CUT_OUT_SPEED_MPS = 25.0
-DEGRADATION_RATED_POWER_MW = 2.0
-DEGRADATION_FACTORS = [1.0, 0.98, 0.95, 0.90]
-
-
-def simulate_turbine_power_degraded(
-    windspeed: np.ndarray, degradation_level: int = 0, rated_power: float = DEGRADATION_RATED_POWER_MW
-) -> np.ndarray:
-    """Simulate turbine power with degradation."""
+def simulate_turbine_power_degraded(windspeed, degradation_level=0, rated_power=2.0):
+    """
+    Simulate turbine power with degradation.
+    degradation_level: 0 (healthy), 1 (2% degraded), 2 (5% degraded), 3 (10% degraded)
+    """
+    cut_in = 3.0
+    rated_speed = 12.0
+    cut_out = 25.0
+    
+    degradation_factors = [1.0, 0.98, 0.95, 0.90]
+    degradation_factor = degradation_factors[degradation_level]
+    
     power = np.zeros_like(windspeed)
-
-    degradation_factor = DEGRADATION_FACTORS[degradation_level]
-
+    
     for i, ws in enumerate(windspeed):
-        if ws < DEGRADATION_CUT_IN_SPEED_MPS or ws > DEGRADATION_CUT_OUT_SPEED_MPS:
-            power[i] = 0.0
-        elif ws < DEGRADATION_RATED_SPEED_MPS:
-            power[i] = rated_power * (
-                (ws - DEGRADATION_CUT_IN_SPEED_MPS)
-                / (DEGRADATION_RATED_SPEED_MPS - DEGRADATION_CUT_IN_SPEED_MPS)
-            ) ** 3
+        if ws < cut_in or ws > cut_out:
+            power[i] = 0
+        elif ws < rated_speed:
+            power[i] = rated_power * ((ws - cut_in) / (rated_speed - cut_in)) ** 3
         else:
             power[i] = rated_power
-
+        
+        # Apply degradation
         power[i] *= degradation_factor
-
+        
+        # Add noise (more noise with degradation)
         noise_level = 0.03 * (1 + degradation_level * 0.1)
         power[i] += np.random.normal(0, noise_level * rated_power)
-        power[i] = max(0.0, power[i])
-
+        power[i] = max(0, power[i])
+    
     return power
 
-
-def create_degradation_scenarios(
-    df: pd.DataFrame, n_windows: int = 120, window_size: int = 288
-) -> Tuple[List[pd.DataFrame], np.ndarray]:
-    """Create labeled windows with different degradation levels."""
-    logger.info("Creating %d labeled windows (healthy vs degraded)", n_windows)
+def create_degradation_scenarios(df, n_windows=120, window_size=288):
+    """
+    Create labeled windows with different degradation levels.
+    Label: 0=healthy, 1=degraded (2%+)
+    """
+    print(f"\nCreating {n_windows} labeled windows (healthy vs degraded)...")
     
     windows = []
     labels = []
@@ -226,11 +118,7 @@ def create_degradation_scenarios(
         windows.append(window_df)
         labels.append(1 if degradation_level > 0 else 0)
     
-    logger.info(
-        "Created %d degraded windows and %d healthy windows",
-        int(sum(labels)),
-        int(len(labels) - sum(labels)),
-    )
+    print(f"Created {sum(labels)} degraded windows and {len(labels)-sum(labels)} healthy windows")
     return windows, np.array(labels)
 
 def compute_graph_laplacian(points, k=8):
@@ -343,108 +231,87 @@ def compute_laplacian_features(window_df, n_eigenvalues=10):
     
     return features
 
-def extract_all_features(
-    windows: List[pd.DataFrame], labels: np.ndarray
-) -> Tuple[pd.DataFrame, np.ndarray]:
+def extract_all_features(windows, labels):
     """Extract Laplacian and persistence features."""
-    logger.info("Extracting Laplacian spectral features")
-
-    feature_list: List[Dict[str, float]] = []
+    print("\nExtracting Laplacian spectral features...")
+    
+    feature_list = []
     for i, window_df in enumerate(windows):
         if i % 20 == 0:
-            logger.info("Processing window %d/%d", i + 1, len(windows))
-
+            print(f"  Processing window {i+1}/{len(windows)}")
+        
         features = compute_laplacian_features(window_df, n_eigenvalues=10)
         feature_list.append(features)
-
+    
     X = pd.DataFrame(feature_list)
     y = labels
-
-    X = X.replace([np.inf, -np.inf], np.nan).fillna(0.0)
-
-    logger.info("Feature matrix shape: %s", X.shape)
-    logger.info(
-        "Label distribution: degraded=%d healthy=%d",
-        int(sum(y)),
-        int(len(y) - sum(y)),
-    )
-
+    
+    print(f"\nFeature matrix: {X.shape}")
+    print(f"Label distribution: Degraded={sum(y)}, Healthy={len(y)-sum(y)}")
+    
     return X, y
 
-
-def train_and_evaluate_models(
-    X: pd.DataFrame, y: np.ndarray
-) -> Dict[str, Dict[str, Any]]:
+def train_and_evaluate_models(X, y):
     """Train and evaluate classifiers."""
-    logger.info("=" * 60)
-    logger.info("TRAINING AND EVALUATION")
-    logger.info("=" * 60)
-
+    print("\n" + "="*60)
+    print("TRAINING AND EVALUATION")
+    print("="*60)
+    
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.3, random_state=42, stratify=y
     )
     
-    logger.info("Train set: %d samples", len(X_train))
-    logger.info("Test set: %d samples", len(X_test))
+    print(f"\nTrain set: {len(X_train)} samples")
+    print(f"Test set: {len(X_test)} samples")
     
-    models: Dict[str, Any] = {
-        "Logistic Regression": LogisticRegression(random_state=42, max_iter=1000),
-        "SVM (Linear)": SVC(kernel="linear", random_state=42, probability=True),
-        "SVM (RBF)": SVC(kernel="rbf", random_state=42, probability=True),
-        "Random Forest": RandomForestClassifier(n_estimators=100, random_state=42),
-        "Gradient Boosting": GradientBoostingClassifier(
-            n_estimators=100, random_state=42
-        ),
+    models = {
+        'Logistic Regression': LogisticRegression(random_state=42, max_iter=1000),
+        'SVM (Linear)': SVC(kernel='linear', random_state=42, probability=True),
+        'SVM (RBF)': SVC(kernel='rbf', random_state=42, probability=True),
+        'Random Forest': RandomForestClassifier(n_estimators=100, random_state=42),
+        'Gradient Boosting': GradientBoostingClassifier(n_estimators=100, random_state=42)
     }
-
-    results: Dict[str, Dict[str, Any]] = {}
-
+    
+    results = {}
+    
     for name, model in models.items():
-        logger.info("Training model: %s", name)
+        print(f"\n{name}:")
         model.fit(X_train, y_train)
-
+        
         y_pred = model.predict(X_test)
-        y_proba = (
-            model.predict_proba(X_test)[:, 1]
-            if hasattr(model, "predict_proba")
-            else None
-        )
-
+        y_proba = model.predict_proba(X_test)[:, 1] if hasattr(model, 'predict_proba') else None
+        
         acc = accuracy_score(y_test, y_pred)
         f1 = f1_score(y_test, y_pred)
         auc = roc_auc_score(y_test, y_proba) if y_proba is not None else None
-
-        logger.info("  Accuracy=%.3f F1=%.3f AUC=%s", acc, f1, f"{auc:.3f}" if auc else "n/a")
-
+        
+        print(f"  Accuracy: {acc:.3f}")
+        print(f"  F1 Score: {f1:.3f}")
+        if auc is not None:
+            print(f"  AUC: {auc:.3f}")
+        
         results[name] = {
-            "model": model,
-            "accuracy": acc,
-            "f1": f1,
-            "auc": auc,
-            "y_test": y_test,
-            "y_pred": y_pred,
+            'model': model,
+            'accuracy': acc,
+            'f1': f1,
+            'auc': auc,
+            'y_test': y_test,
+            'y_pred': y_pred
         }
-
+    
     return results
 
-def generate_visualizations(
-    windows: List[pd.DataFrame],
-    labels: np.ndarray,
-    X: pd.DataFrame,
-    y: np.ndarray,
-    results: Dict[str, Dict[str, Any]],
-    out_dir: Path | str,
-) -> None:
+def generate_visualizations(windows, labels, X, y, results, out_dir):
     """Generate comprehensive visualizations."""
-    logger.info("=" * 60)
-    logger.info("GENERATING VISUALIZATIONS")
-    logger.info("=" * 60)
-
+    print("\n" + "="*60)
+    print("GENERATING VISUALIZATIONS")
+    print("="*60)
+    
     out_dir = Path(out_dir)
     out_dir.mkdir(exist_ok=True, parents=True)
     
     # 1. Model comparison
-    logger.info("Creating model comparison plots")
+    print("\n1. Model comparison...")
     fig, axes = plt.subplots(1, 2, figsize=(12, 4))
     
     model_names = list(results.keys())
@@ -470,12 +337,12 @@ def generate_visualizations(
     axes[1].spines['right'].set_visible(False)
     
     plt.tight_layout()
-    plt.savefig(out_dir / "model_comparison.png", dpi=300, bbox_inches="tight")
+    plt.savefig(out_dir / "model_comparison.png", dpi=300, bbox_inches='tight')
     plt.close()
-    logger.info("Saved model comparison to %s", out_dir / "model_comparison.png")
+    print(f"  Saved: model_comparison.png")
     
     # 2. Eigenvalue spectra comparison
-    logger.info("Creating eigenvalue spectra comparison")
+    print("2. Eigenvalue spectra comparison...")
     healthy_idx = np.where(labels == 0)[0][0]
     degraded_idx = np.where(labels == 1)[0][0]
     
@@ -490,12 +357,12 @@ def generate_visualizations(
     plt.title('Laplacian Eigenvalue Spectrum: Healthy vs Degraded')
     plt.legend(frameon=False)
     plt.tight_layout()
-    plt.savefig(out_dir / "eigenvalue_spectra.png", dpi=300, bbox_inches="tight")
+    plt.savefig(out_dir / "eigenvalue_spectra.png", dpi=300, bbox_inches='tight')
     plt.close()
-    logger.info("Saved eigenvalue spectra to %s", out_dir / "eigenvalue_spectra.png")
+    print(f"  Saved: eigenvalue_spectra.png")
     
     # 3. Spectral gap distribution
-    logger.info("Creating spectral gap distribution plot")
+    print("3. Spectral gap distribution...")
     healthy_gaps = X[y == 0]['spectral_gap']
     degraded_gaps = X[y == 1]['spectral_gap']
     
@@ -507,14 +374,12 @@ def generate_visualizations(
     plt.title('Spectral Gap Distribution: Healthy vs Degraded')
     plt.legend(frameon=False)
     plt.tight_layout()
-    plt.savefig(out_dir / "spectral_gap_distribution.png", dpi=300, bbox_inches="tight")
+    plt.savefig(out_dir / "spectral_gap_distribution.png", dpi=300, bbox_inches='tight')
     plt.close()
-    logger.info(
-        "Saved spectral gap distribution to %s", out_dir / "spectral_gap_distribution.png"
-    )
+    print(f"  Saved: spectral_gap_distribution.png")
     
     # 4. Feature importance
-    logger.info("Creating feature importance plot for Random Forest")
+    print("4. Feature importance...")
     if 'Random Forest' in results:
         rf_model = results['Random Forest']['model']
         importances = rf_model.feature_importances_
@@ -529,39 +394,37 @@ def generate_visualizations(
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
         plt.tight_layout()
-        plt.savefig(out_dir / "feature_importance.png", dpi=300, bbox_inches="tight")
+        plt.savefig(out_dir / "feature_importance.png", dpi=300, bbox_inches='tight')
         plt.close()
-        logger.info("Saved feature importance to %s", out_dir / "feature_importance.png")
+        print(f"  Saved: feature_importance.png")
+    
+    print("\nAll visualizations generated successfully!")
 
-    logger.info("All visualizations generated successfully")
-
-def main() -> None:
+def main():
     """Main execution."""
-    logger.info("=" * 60)
-    logger.info("POWER CURVE DEGRADATION USING PERSISTENT LAPLACIANS")
-    logger.info("=" * 60)
-
+    print("="*60)
+    print("POWER CURVE DEGRADATION USING PERSISTENT LAPLACIANS")
+    print("="*60)
+    
     df = fetch_nrel_wind_data()
     windows, labels = create_degradation_scenarios(df, n_windows=120, window_size=288)
     X, y = extract_all_features(windows, labels)
     results = train_and_evaluate_models(X, y)
-
+    
     out_dir = Path(__file__).parent / "figures_degradation"
     generate_visualizations(windows, labels, X, y, results, out_dir)
-
-    logger.info("=" * 60)
-    logger.info("FINAL SUMMARY")
-    logger.info("=" * 60)
-    best_model_name = max(results.keys(), key=lambda k: results[k]["accuracy"])
+    
+    print("\n" + "="*60)
+    print("FINAL SUMMARY")
+    print("="*60)
+    best_model_name = max(results.keys(), key=lambda k: results[k]['accuracy'])
     best_result = results[best_model_name]
-    logger.info(
-        "Best model=%s accuracy=%.3f f1=%.3f",
-        best_model_name,
-        best_result["accuracy"],
-        best_result["f1"],
-    )
-    logger.info("Visualizations saved to %s", out_dir)
-    logger.info("Analysis complete")
+    print(f"\nBest Model: {best_model_name}")
+    print(f"  Accuracy: {best_result['accuracy']:.3f}")
+    print(f"  F1 Score: {best_result['f1']:.3f}")
+    
+    print(f"\nVisualizations saved to: {out_dir}/")
+    print("\nAnalysis complete!")
 
 if __name__ == "__main__":
     main()
