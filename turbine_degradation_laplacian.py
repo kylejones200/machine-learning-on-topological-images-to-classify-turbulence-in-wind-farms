@@ -18,13 +18,31 @@ from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import eigsh
 from pathlib import Path
 import warnings
+import logging
+import yaml
+
+def load_config(config_path=None):
+    """Load configuration from YAML file."""
+    if config_path is None:
+        config_path = Path(__file__).parent / 'config.yaml'
+    if not config_path.exists():
+        return {}
+    with open(config_path) as _f:
+        import yaml as _yaml
+        return _yaml.safe_load(_f) or {}
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 warnings.filterwarnings('ignore')
 
-np.random.seed(42)
+np.random.seed(config.get('data', {}).get('seed', 42))
 
 def fetch_nrel_wind_data(lat=41.5, lon=-100.5, years=[2010, 2011, 2012]):
     """Simulate NREL Wind Toolkit data fetch."""
-    print(f"Simulating NREL wind data fetch for location ({lat}, {lon})")
+    logger.info(f"Simulating NREL wind data fetch for location ({lat}, {lon})")
     
     n_records = 365 * 24 * 12 * len(years)
     timestamps = pd.date_range(start=f'{years[0]}-01-01', periods=n_records, freq='5min')
@@ -50,7 +68,7 @@ def fetch_nrel_wind_data(lat=41.5, lon=-100.5, years=[2010, 2011, 2012]):
         'temperature': temperature
     })
     
-    print(f"Fetched {len(df)} records spanning {len(years)} years")
+    logger.info(f"Fetched {len(df)} records spanning {len(years)} years")
     return df
 
 def simulate_turbine_power_degraded(windspeed, degradation_level=0, rated_power=2.0):
@@ -90,7 +108,7 @@ def create_degradation_scenarios(df, n_windows=120, window_size=288):
     Create labeled windows with different degradation levels.
     Label: 0=healthy, 1=degraded (2%+)
     """
-    print(f"\nCreating {n_windows} labeled windows (healthy vs degraded)...")
+    logger.info(f"\nCreating {n_windows} labeled windows (healthy vs degraded)...")
     
     windows = []
     labels = []
@@ -102,10 +120,7 @@ def create_degradation_scenarios(df, n_windows=120, window_size=288):
         window_df = df.iloc[start:start+window_size].copy()
         
         # Distribute degradation levels
-        if idx < n_windows // 2:
-            degradation_level = 0  # Healthy
-        else:
-            degradation_level = np.random.choice([1, 2, 3])  # Degraded
+        degradation_level = np.where(idx < n_windows // 2, 0, np.random.choice([1, 2, 3]))
         
         power = simulate_turbine_power_degraded(
             window_df['windspeed_80m'].values,
@@ -118,7 +133,7 @@ def create_degradation_scenarios(df, n_windows=120, window_size=288):
         windows.append(window_df)
         labels.append(1 if degradation_level > 0 else 0)
     
-    print(f"Created {sum(labels)} degraded windows and {len(labels)-sum(labels)} healthy windows")
+    logger.info(f"Created {sum(labels)} degraded windows and {len(labels)-sum(labels)} healthy windows")
     return windows, np.array(labels)
 
 def compute_graph_laplacian(points, k=8):
@@ -233,12 +248,12 @@ def compute_laplacian_features(window_df, n_eigenvalues=10):
 
 def extract_all_features(windows, labels):
     """Extract Laplacian and persistence features."""
-    print("\nExtracting Laplacian spectral features...")
+    logger.info("\nExtracting Laplacian spectral features...")
     
     feature_list = []
     for i, window_df in enumerate(windows):
         if i % 20 == 0:
-            print(f"  Processing window {i+1}/{len(windows)}")
+            logger.info(f"  Processing window {i+1}/{len(windows)}")
         
         features = compute_laplacian_features(window_df, n_eigenvalues=10)
         feature_list.append(features)
@@ -246,23 +261,23 @@ def extract_all_features(windows, labels):
     X = pd.DataFrame(feature_list)
     y = labels
     
-    print(f"\nFeature matrix: {X.shape}")
-    print(f"Label distribution: Degraded={sum(y)}, Healthy={len(y)-sum(y)}")
+    logger.info(f"\nFeature matrix: {X.shape}")
+    logger.info(f"Label distribution: Degraded={sum(y)}, Healthy={len(y)-sum(y)}")
     
     return X, y
 
 def train_and_evaluate_models(X, y):
     """Train and evaluate classifiers."""
-    print("\n" + "="*60)
-    print("TRAINING AND EVALUATION")
-    print("="*60)
+    logger.info("\n" + "="*60)
+    logger.info("TRAINING AND EVALUATION")
+    logger.info("="*60)
     
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.3, random_state=42, stratify=y
     )
     
-    print(f"\nTrain set: {len(X_train)} samples")
-    print(f"Test set: {len(X_test)} samples")
+    logger.info(f"\nTrain set: {len(X_train)} samples")
+    logger.info(f"Test set: {len(X_test)} samples")
     
     models = {
         'Logistic Regression': LogisticRegression(random_state=42, max_iter=1000),
@@ -275,7 +290,7 @@ def train_and_evaluate_models(X, y):
     results = {}
     
     for name, model in models.items():
-        print(f"\n{name}:")
+        logger.info(f"\n{name}:")
         model.fit(X_train, y_train)
         
         y_pred = model.predict(X_test)
@@ -285,10 +300,10 @@ def train_and_evaluate_models(X, y):
         f1 = f1_score(y_test, y_pred)
         auc = roc_auc_score(y_test, y_proba) if y_proba is not None else None
         
-        print(f"  Accuracy: {acc:.3f}")
-        print(f"  F1 Score: {f1:.3f}")
+        logger.info(f"  Accuracy: {acc:.3f}")
+        logger.info(f"  F1 Score: {f1:.3f}")
         if auc is not None:
-            print(f"  AUC: {auc:.3f}")
+            logger.info(f"  AUC: {auc:.3f}")
         
         results[name] = {
             'model': model,
@@ -303,16 +318,16 @@ def train_and_evaluate_models(X, y):
 
 def generate_visualizations(windows, labels, X, y, results, out_dir):
     """Generate comprehensive visualizations."""
-    print("\n" + "="*60)
-    print("GENERATING VISUALIZATIONS")
-    print("="*60)
+    logger.info("\n" + "="*60)
+    logger.info("GENERATING VISUALIZATIONS")
+    logger.info("="*60)
     
     out_dir = Path(out_dir)
     out_dir.mkdir(exist_ok=True, parents=True)
     
     # 1. Model comparison
-    print("\n1. Model comparison...")
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+    logger.info("\n1. Model comparison...")
+    fig, axes = plt.subplots(1, 2, figsize=tuple(config.get('output', {}).get('figsize', [12, 4])))
     
     model_names = list(results.keys())
     accuracies = [results[m]['accuracy'] for m in model_names]
@@ -339,10 +354,10 @@ def generate_visualizations(windows, labels, X, y, results, out_dir):
     plt.tight_layout()
     plt.savefig(out_dir / "model_comparison.png", dpi=300, bbox_inches='tight')
     plt.close()
-    print(f"  Saved: model_comparison.png")
+    logger.info(f"  Saved: model_comparison.png")
     
     # 2. Eigenvalue spectra comparison
-    print("2. Eigenvalue spectra comparison...")
+    logger.info("2. Eigenvalue spectra comparison...")
     healthy_idx = np.where(labels == 0)[0][0]
     degraded_idx = np.where(labels == 1)[0][0]
     
@@ -359,10 +374,10 @@ def generate_visualizations(windows, labels, X, y, results, out_dir):
     plt.tight_layout()
     plt.savefig(out_dir / "eigenvalue_spectra.png", dpi=300, bbox_inches='tight')
     plt.close()
-    print(f"  Saved: eigenvalue_spectra.png")
+    logger.info(f"  Saved: eigenvalue_spectra.png")
     
     # 3. Spectral gap distribution
-    print("3. Spectral gap distribution...")
+    logger.info("3. Spectral gap distribution...")
     healthy_gaps = X[y == 0]['spectral_gap']
     degraded_gaps = X[y == 1]['spectral_gap']
     
@@ -376,10 +391,10 @@ def generate_visualizations(windows, labels, X, y, results, out_dir):
     plt.tight_layout()
     plt.savefig(out_dir / "spectral_gap_distribution.png", dpi=300, bbox_inches='tight')
     plt.close()
-    print(f"  Saved: spectral_gap_distribution.png")
+    logger.info(f"  Saved: spectral_gap_distribution.png")
     
     # 4. Feature importance
-    print("4. Feature importance...")
+    logger.info("4. Feature importance...")
     if 'Random Forest' in results:
         rf_model = results['Random Forest']['model']
         importances = rf_model.feature_importances_
@@ -396,15 +411,15 @@ def generate_visualizations(windows, labels, X, y, results, out_dir):
         plt.tight_layout()
         plt.savefig(out_dir / "feature_importance.png", dpi=300, bbox_inches='tight')
         plt.close()
-        print(f"  Saved: feature_importance.png")
+        logger.info(f"  Saved: feature_importance.png")
     
-    print("\nAll visualizations generated successfully!")
+    logger.info("\nAll visualizations generated successfully!")
 
 def main():
     """Main execution."""
-    print("="*60)
-    print("POWER CURVE DEGRADATION USING PERSISTENT LAPLACIANS")
-    print("="*60)
+    logger.info("="*60)
+    logger.info("POWER CURVE DEGRADATION USING PERSISTENT LAPLACIANS")
+    logger.info("="*60)
     
     df = fetch_nrel_wind_data()
     windows, labels = create_degradation_scenarios(df, n_windows=120, window_size=288)
@@ -414,17 +429,17 @@ def main():
     out_dir = Path(__file__).parent / "figures_degradation"
     generate_visualizations(windows, labels, X, y, results, out_dir)
     
-    print("\n" + "="*60)
-    print("FINAL SUMMARY")
-    print("="*60)
+    logger.info("\n" + "="*60)
+    logger.info("FINAL SUMMARY")
+    logger.info("="*60)
     best_model_name = max(results.keys(), key=lambda k: results[k]['accuracy'])
     best_result = results[best_model_name]
-    print(f"\nBest Model: {best_model_name}")
-    print(f"  Accuracy: {best_result['accuracy']:.3f}")
-    print(f"  F1 Score: {best_result['f1']:.3f}")
+    logger.info(f"\nBest Model: {best_model_name}")
+    logger.info(f"  Accuracy: {best_result['accuracy']:.3f}")
+    logger.info(f"  F1 Score: {best_result['f1']:.3f}")
     
-    print(f"\nVisualizations saved to: {out_dir}/")
-    print("\nAnalysis complete!")
+    logger.info(f"\nVisualizations saved to: {out_dir}/")
+    logger.info("\nAnalysis complete!")
 
 if __name__ == "__main__":
     main()

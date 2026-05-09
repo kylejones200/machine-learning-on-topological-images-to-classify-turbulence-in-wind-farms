@@ -1,0 +1,19 @@
+data:
+  seed: 42
+  freq: 5min
+  test_size: 0.2
+model:
+  alpha: 0.85
+  window_size: 10
+  max_iter: 1000
+  n_estimators: 100
+  gamma: 0.5
+  batch_size: 32
+  learning_rate: 0.001
+output:
+  figures_dir: images
+  figure_format: png
+  figure_dpi: 300
+  figsize:
+  - 8
+  - 8

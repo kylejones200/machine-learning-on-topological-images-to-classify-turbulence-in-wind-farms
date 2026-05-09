@@ -9,6 +9,23 @@ from pathlib import Path
 import requests
 from io import StringIO
 
+import logging
+import yaml
+
+def load_config(config_path=None):
+    """Load configuration from YAML file."""
+    if config_path is None:
+        config_path = Path(__file__).parent / 'config.yaml'
+    if not config_path.exists():
+        return {}
+    with open(config_path) as _f:
+        return _yaml.safe_load(_f) or {}
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 # For persistence
 from ripser import ripser
 from sklearn.preprocessing import StandardScaler
@@ -37,7 +54,7 @@ def fetch_nrel_wind_data(lat=41.5, lon=-93.5, years=[2017]):
     all_data = []
     
     for year in years:
-        print(f"   Fetching year {year}...")
+        logger.info(f"   Fetching year {year}...")
         
         params = {
             'api_key': NREL_API_KEY,
@@ -68,10 +85,10 @@ def fetch_nrel_wind_data(lat=41.5, lon=-93.5, years=[2017]):
             
             df_year['time'] = pd.to_datetime(df_year[['Year', 'Month', 'Day', 'Hour', 'Minute']])
             all_data.append(df_year)
-            print(f"     ✓ Fetched {len(df_year):,} records")
+            logger.info(f"     ✓ Fetched {len(df_year):,} records")
             
         except Exception as e:
-            print(f"     ✗ Error: {e}")
+            logger.error(f"     ✗ Error: {e}")
             continue
     
     if not all_data:
@@ -116,10 +133,7 @@ def simulate_turbulence_and_turbine(wind_df, rated_power=2000):
     for i in range(n):
         # Add multi-scale turbulence
         # Large scale (slow)
-        if i == 0:
-            large_scale = 0
-        else:
-            large_scale = 0.95 * wind_turbulent[i-1] + 0.05 * np.random.randn() * wind_mean[i] * ti[i]
+        large_scale = np.where(i == 0, 0, 0.95 * wind_turbulent[i - 1] + 0.05 * np.random.randn() * wind_mean[i] * ti[i])
         
         # Small scale (fast)
         small_scale = np.random.randn() * wind_mean[i] * ti[i] * 0.3
@@ -234,7 +248,7 @@ def create_persistence_image_dataset(df, window_size=10, resolution=20):
     Returns:
         images, labels
     """
-    print("\n   Creating persistence images...")
+    logger.info("\n   Creating persistence images...")
     
     images = []
     labels = []
@@ -284,9 +298,9 @@ def create_persistence_image_dataset(df, window_size=10, resolution=20):
     images = np.array(images, dtype=np.float32)
     labels = np.array(labels, dtype=np.int64)
     
-    print(f"     Created {len(images)} persistence images")
-    print(f"     Low turbulence: {(labels==0).sum()}")
-    print(f"     High turbulence: {(labels==1).sum()}")
+    logger.info(f"     Created {len(images)} persistence images")
+    logger.info(f"     Low turbulence: {(labels==0).sum()}")
+    logger.info(f"     High turbulence: {(labels==1).sum()}")
     
     return images, labels
 
@@ -390,7 +404,7 @@ def train_model(model, train_loader, val_loader, num_epochs=30, learning_rate=0.
             best_val_acc = val_acc
         
         if (epoch + 1) % 5 == 0:
-            print(f"   Epoch {epoch+1}/{num_epochs}: "
+            logger.info(f"   Epoch {epoch+1}/{num_epochs}: "
                   f"Train Acc = {train_acc:.2f}%, Val Acc = {val_acc:.2f}%")
         
         scheduler.step()
@@ -429,36 +443,36 @@ def evaluate_model(model, test_loader):
 
 
 def main():
-    np.random.seed(42)
+    np.random.seed(config.get('data', {}).get('seed', 42))
     torch.manual_seed(42)
     
-    print("="*70)
-    print("Turbulence Classification Using Persistence Images & CNN")
-    print("="*70)
+    logger.info("="*70)
+    logger.info("Turbulence Classification Using Persistence Images & CNN")
+    logger.info("="*70)
     
     # 1. Fetch wind data
-    print("\n1. Fetching NREL wind data...")
+    logger.info("\n1. Fetching NREL wind data...")
     wind_data = fetch_nrel_wind_data(lat=41.5, lon=-93.5, years=[2017, 2018])
     if wind_data is None:
-        print("Failed to fetch data")
+        logger.error("Failed to fetch data")
         return
-    print(f"   Total records: {len(wind_data):,}")
+    logger.info(f"   Total records: {len(wind_data):,}")
     
     # 2. Simulate turbulence and turbine
-    print("\n2. Simulating turbulence and turbine response...")
+    logger.info("\n2. Simulating turbulence and turbine response...")
     df = simulate_turbulence_and_turbine(wind_data)
     
     ti_low = (df['turbulence_intensity'] < 0.10).sum()
     ti_high = (df['turbulence_intensity'] > 0.15).sum()
-    print(f"   Low TI (<0.10): {ti_low} ({ti_low/len(df)*100:.1f}%)")
-    print(f"   High TI (>0.15): {ti_high} ({ti_high/len(df)*100:.1f}%)")
+    logger.info(f"   Low TI (<0.10): {ti_low} ({ti_low/len(df)*100:.1f}%)")
+    logger.info(f"   High TI (>0.15): {ti_high} ({ti_high/len(df)*100:.1f}%)")
     
     # 3. Create persistence image dataset
-    print("\n3. Creating persistence image dataset...")
+    logger.info("\n3. Creating persistence image dataset...")
     images, labels = create_persistence_image_dataset(df, window_size=10, resolution=20)
     
     # 4. Split data
-    print("\n4. Splitting data...")
+    logger.info("\n4. Splitting data...")
     # Chronological split
     split_idx = int(0.7 * len(images))
     X_train, X_test = images[:split_idx], images[split_idx:]
@@ -469,9 +483,9 @@ def main():
         X_train, y_train, test_size=0.2, random_state=42, stratify=y_train
     )
     
-    print(f"   Train: {len(X_train)} samples")
-    print(f"   Val: {len(X_val)} samples")
-    print(f"   Test: {len(X_test)} samples")
+    logger.info(f"   Train: {len(X_train)} samples")
+    logger.info(f"   Val: {len(X_val)} samples")
+    logger.info(f"   Test: {len(X_test)} samples")
     
     # Create data loaders
     train_dataset = PersistenceImageDataset(X_train, y_train)
@@ -483,22 +497,22 @@ def main():
     test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
     
     # 5. Train model
-    print("\n5. Training CNN...")
+    logger.info("\n5. Training CNN...")
     model = PersistenceCNN(input_channels=2, num_classes=2).to(DEVICE)
-    print(f"   Using device: {DEVICE}")
+    logger.info(f"   Using device: {DEVICE}")
     
     model = train_model(model, train_loader, val_loader, num_epochs=30, learning_rate=0.001)
     
     # 6. Evaluate
-    print("\n6. Evaluating on test set...")
+    logger.info("\n6. Evaluating on test set...")
     acc, auc, preds, probs, labels_true = evaluate_model(model, test_loader)
     
-    print(f"\n   Test Accuracy: {acc*100:.2f}%")
-    print(f"   Test AUC: {auc:.3f}")
-    print(f"\n{classification_report(labels_true, preds, target_names=['Low TI', 'High TI'])}")
+    logger.info(f"\n   Test Accuracy: {acc*100:.2f}%")
+    logger.info(f"   Test AUC: {auc:.3f}")
+    logger.info(f"\n{classification_report(labels_true, preds, target_names=['Low TI', 'High TI'])}")
     
     # 7. Visualizations
-    print("\n7. Generating visualizations...")
+    logger.info("\n7. Generating visualizations...")
     out_dir = Path("figures_turbulence")
     out_dir.mkdir(exist_ok=True)
     
@@ -506,7 +520,7 @@ def main():
     from sklearn.metrics import roc_curve
     fpr, tpr, _ = roc_curve(labels_true, probs)
     
-    fig, ax = plt.subplots(figsize=(8, 8))
+    fig, ax = plt.subplots(figsize=tuple(config.get('output', {}).get('figsize', [8, 8])))
     ax.plot(fpr, tpr, 'k-', linewidth=2, label=f'AUC = {auc:.3f}')
     ax.plot([0, 1], [0, 1], 'k--', linewidth=1, label='Random')
     ax.set_xlabel('False Positive Rate', fontsize=11)
@@ -521,18 +535,18 @@ def main():
     plt.savefig(out_dir / 'roc_curve.png', dpi=300, bbox_inches='tight')
     plt.close()
     
-    print(f"   Saved visualizations to {out_dir}/")
+    logger.info(f"   Saved visualizations to {out_dir}/")
     
-    print("\n" + "="*70)
-    print("TURBULENCE CLASSIFICATION COMPLETE")
-    print("="*70)
-    print(f"\nCNN on persistence images: {acc*100:.1f}% accuracy")
-    print(f"No specialized sensors required - SCADA only")
-    print(f"Enables:")
-    print(f"  - Turbulence-aware load monitoring")
-    print(f"  - Adaptive control strategies")
-    print(f"  - Site assessment validation")
-    print("="*70)
+    logger.info("\n" + "="*70)
+    logger.info("TURBULENCE CLASSIFICATION COMPLETE")
+    logger.info("="*70)
+    logger.info(f"\nCNN on persistence images: {acc*100:.1f}% accuracy")
+    logger.info(f"No specialized sensors required - SCADA only")
+    logger.info(f"Enables:")
+    logger.info(f"  - Turbulence-aware load monitoring")
+    logger.info(f"  - Adaptive control strategies")
+    logger.info(f"  - Site assessment validation")
+    logger.info("="*70)
 
 
 if __name__ == "__main__":

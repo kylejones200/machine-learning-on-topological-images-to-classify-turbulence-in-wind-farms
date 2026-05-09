@@ -4,6 +4,12 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.gridspec import GridSpec
 
+import logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 np.random.seed(42)
 FPS, N_FRAMES = 10, 100
 n_samples = 400
@@ -49,8 +55,8 @@ def update(frame):
     ax3.set_title('Classification', fontsize=11, fontweight='normal')
     return []
 
-print("Creating animation for Article 37...")
+logger.info("Creating animation for Article 37...")
 anim = animation.FuncAnimation(fig, update, frames=N_FRAMES, interval=1000/FPS, blit=True, repeat=True)
 anim.save('37_turbulence_animation.gif', writer='pillow', fps=FPS, dpi=100)
-print("✓ Animation saved: 37_turbulence_animation.gif")
+logger.info("✓ Animation saved: 37_turbulence_animation.gif")
 plt.close()
