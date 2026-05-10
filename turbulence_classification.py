@@ -442,7 +442,7 @@ def evaluate_model(model, test_loader):
     return acc, auc, all_preds, all_probs, all_labels
 
 
-def main():
+def main(plot: bool = False):
     np.random.seed(config.get('data', {}).get('seed', 42))
     torch.manual_seed(42)
     
@@ -520,20 +520,21 @@ def main():
     from sklearn.metrics import roc_curve
     fpr, tpr, _ = roc_curve(labels_true, probs)
     
-    fig, ax = plt.subplots(figsize=tuple(config.get('output', {}).get('figsize', [8, 8])))
-    ax.plot(fpr, tpr, 'k-', linewidth=2, label=f'AUC = {auc:.3f}')
-    ax.plot([0, 1], [0, 1], 'k--', linewidth=1, label='Random')
-    ax.set_xlabel('False Positive Rate', fontsize=11)
-    ax.set_ylabel('True Positive Rate', fontsize=11)
-    ax.set_title('ROC Curve: Turbulence Classification', fontsize=12, fontweight='normal')
-    ax.legend(frameon=False, fontsize=10)
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
+    if plot:
+        fig, ax = plt.subplots(figsize=tuple(config.get('output', {}).get('figsize', [8, 8])))
+        ax.plot(fpr, tpr, 'k-', linewidth=2, label=f'AUC = {auc:.3f}')
+        ax.plot([0, 1], [0, 1], 'k--', linewidth=1, label='Random')
+        ax.set_xlabel('False Positive Rate', fontsize=11)
+        ax.set_ylabel('True Positive Rate', fontsize=11)
+        ax.set_title('ROC Curve: Turbulence Classification', fontsize=12, fontweight='normal')
+        ax.legend(frameon=False, fontsize=10)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
     
     
-    plt.tight_layout()
-    plt.savefig(out_dir / 'roc_curve.png', dpi=300, bbox_inches='tight')
-    plt.close()
+        plt.tight_layout()
+        plt.savefig(out_dir / 'roc_curve.png', dpi=300, bbox_inches='tight')
+        plt.close()
     
     logger.info(f"   Saved visualizations to {out_dir}/")
     

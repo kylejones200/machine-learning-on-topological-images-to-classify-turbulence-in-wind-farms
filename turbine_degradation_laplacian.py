@@ -316,7 +316,7 @@ def train_and_evaluate_models(X, y):
     
     return results
 
-def generate_visualizations(windows, labels, X, y, results, out_dir):
+def generate_visualizations(windows, labels, X, y, results, out_dir, plot: bool = False):
     """Generate comprehensive visualizations."""
     logger.info("\n" + "="*60)
     logger.info("GENERATING VISUALIZATIONS")
@@ -327,90 +327,91 @@ def generate_visualizations(windows, labels, X, y, results, out_dir):
     
     # 1. Model comparison
     logger.info("\n1. Model comparison...")
-    fig, axes = plt.subplots(1, 2, figsize=tuple(config.get('output', {}).get('figsize', [12, 4])))
+    if plot:
+        fig, axes = plt.subplots(1, 2, figsize=tuple(config.get('output', {}).get('figsize', [12, 4])))
     
-    model_names = list(results.keys())
-    accuracies = [results[m]['accuracy'] for m in model_names]
-    f1s = [results[m]['f1'] for m in model_names]
+        model_names = list(results.keys())
+        accuracies = [results[m]['accuracy'] for m in model_names]
+        f1s = [results[m]['f1'] for m in model_names]
     
-    axes[0].bar(range(len(model_names)), accuracies, color='#2b2b2b', alpha=0.85)
-    axes[0].set_xticks(range(len(model_names)))
-    axes[0].set_xticklabels(model_names, rotation=45, ha='right')
-    axes[0].set_ylabel('Accuracy')
-    axes[0].set_title('Degradation Detection Accuracy')
-    axes[0].set_ylim([0, 1])
-    axes[0].spines['top'].set_visible(False)
-    axes[0].spines['right'].set_visible(False)
+        axes[0].bar(range(len(model_names)), accuracies, color='#2b2b2b', alpha=0.85)
+        axes[0].set_xticks(range(len(model_names)))
+        axes[0].set_xticklabels(model_names, rotation=45, ha='right')
+        axes[0].set_ylabel('Accuracy')
+        axes[0].set_title('Degradation Detection Accuracy')
+        axes[0].set_ylim([0, 1])
+        axes[0].spines['top'].set_visible(False)
+        axes[0].spines['right'].set_visible(False)
     
-    axes[1].bar(range(len(model_names)), f1s, color='#d62728', alpha=0.85)
-    axes[1].set_xticks(range(len(model_names)))
-    axes[1].set_xticklabels(model_names, rotation=45, ha='right')
-    axes[1].set_ylabel('F1 Score')
-    axes[1].set_title('Degradation Detection F1 Score')
-    axes[1].set_ylim([0, 1])
-    axes[1].spines['top'].set_visible(False)
-    axes[1].spines['right'].set_visible(False)
+        axes[1].bar(range(len(model_names)), f1s, color='#d62728', alpha=0.85)
+        axes[1].set_xticks(range(len(model_names)))
+        axes[1].set_xticklabels(model_names, rotation=45, ha='right')
+        axes[1].set_ylabel('F1 Score')
+        axes[1].set_title('Degradation Detection F1 Score')
+        axes[1].set_ylim([0, 1])
+        axes[1].spines['top'].set_visible(False)
+        axes[1].spines['right'].set_visible(False)
     
-    plt.tight_layout()
-    plt.savefig(out_dir / "model_comparison.png", dpi=300, bbox_inches='tight')
-    plt.close()
-    logger.info(f"  Saved: model_comparison.png")
+        plt.tight_layout()
+        plt.savefig(out_dir / "model_comparison.png", dpi=300, bbox_inches='tight')
+        plt.close()
+        logger.info(f"  Saved: model_comparison.png")
     
     # 2. Eigenvalue spectra comparison
-    logger.info("2. Eigenvalue spectra comparison...")
-    healthy_idx = np.where(labels == 0)[0][0]
-    degraded_idx = np.where(labels == 1)[0][0]
+        logger.info("2. Eigenvalue spectra comparison...")
+        healthy_idx = np.where(labels == 0)[0][0]
+        degraded_idx = np.where(labels == 1)[0][0]
     
-    healthy_eigs = [X.iloc[healthy_idx][f'eigenvalue_{i}'] for i in range(10)]
-    degraded_eigs = [X.iloc[degraded_idx][f'eigenvalue_{i}'] for i in range(10)]
+        healthy_eigs = [X.iloc[healthy_idx][f'eigenvalue_{i}'] for i in range(10)]
+        degraded_eigs = [X.iloc[degraded_idx][f'eigenvalue_{i}'] for i in range(10)]
     
-    plt.figure(figsize=(10, 6))
-    plt.plot(range(10), healthy_eigs, 'o-', label='Healthy', color='#696969', linewidth=2, markersize=8)
-    plt.plot(range(10), degraded_eigs, 's-', label='Degraded', color='#d62728', linewidth=2, markersize=8)
-    plt.xlabel('Eigenvalue Index')
-    plt.ylabel('Eigenvalue')
-    plt.title('Laplacian Eigenvalue Spectrum: Healthy vs Degraded')
-    plt.legend(frameon=False)
-    plt.tight_layout()
-    plt.savefig(out_dir / "eigenvalue_spectra.png", dpi=300, bbox_inches='tight')
-    plt.close()
-    logger.info(f"  Saved: eigenvalue_spectra.png")
+        plt.figure(figsize=(10, 6))
+        plt.plot(range(10), healthy_eigs, 'o-', label='Healthy', color='#696969', linewidth=2, markersize=8)
+        plt.plot(range(10), degraded_eigs, 's-', label='Degraded', color='#d62728', linewidth=2, markersize=8)
+        plt.xlabel('Eigenvalue Index')
+        plt.ylabel('Eigenvalue')
+        plt.title('Laplacian Eigenvalue Spectrum: Healthy vs Degraded')
+        plt.legend(frameon=False)
+        plt.tight_layout()
+        plt.savefig(out_dir / "eigenvalue_spectra.png", dpi=300, bbox_inches='tight')
+        plt.close()
+        logger.info(f"  Saved: eigenvalue_spectra.png")
     
     # 3. Spectral gap distribution
-    logger.info("3. Spectral gap distribution...")
-    healthy_gaps = X[y == 0]['spectral_gap']
-    degraded_gaps = X[y == 1]['spectral_gap']
+        logger.info("3. Spectral gap distribution...")
+        healthy_gaps = X[y == 0]['spectral_gap']
+        degraded_gaps = X[y == 1]['spectral_gap']
     
-    plt.figure(figsize=(10, 6))
-    plt.hist(healthy_gaps, bins=20, alpha=0.6, label='Healthy', color='#696969', edgecolor='#2b2b2b')
-    plt.hist(degraded_gaps, bins=20, alpha=0.6, label='Degraded', color='#d62728', edgecolor='#2b2b2b')
-    plt.xlabel('Spectral Gap')
-    plt.ylabel('Count')
-    plt.title('Spectral Gap Distribution: Healthy vs Degraded')
-    plt.legend(frameon=False)
-    plt.tight_layout()
-    plt.savefig(out_dir / "spectral_gap_distribution.png", dpi=300, bbox_inches='tight')
-    plt.close()
-    logger.info(f"  Saved: spectral_gap_distribution.png")
+        plt.figure(figsize=(10, 6))
+        plt.hist(healthy_gaps, bins=20, alpha=0.6, label='Healthy', color='#696969', edgecolor='#2b2b2b')
+        plt.hist(degraded_gaps, bins=20, alpha=0.6, label='Degraded', color='#d62728', edgecolor='#2b2b2b')
+        plt.xlabel('Spectral Gap')
+        plt.ylabel('Count')
+        plt.title('Spectral Gap Distribution: Healthy vs Degraded')
+        plt.legend(frameon=False)
+        plt.tight_layout()
+        plt.savefig(out_dir / "spectral_gap_distribution.png", dpi=300, bbox_inches='tight')
+        plt.close()
+        logger.info(f"  Saved: spectral_gap_distribution.png")
     
     # 4. Feature importance
-    logger.info("4. Feature importance...")
-    if 'Random Forest' in results:
-        rf_model = results['Random Forest']['model']
-        importances = rf_model.feature_importances_
-        indices = np.argsort(importances)[::-1][:10]
+        logger.info("4. Feature importance...")
+        if 'Random Forest' in results:
+            rf_model = results['Random Forest']['model']
+            importances = rf_model.feature_importances_
+            indices = np.argsort(importances)[::-1][:10]
         
-        fig, ax = plt.subplots(figsize=(10, 6))
-        ax.bar(range(len(indices)), importances[indices], color='#2b2b2b', alpha=0.85)
-        ax.set_xticks(range(len(indices)))
-        ax.set_xticklabels([X.columns[i] for i in indices], rotation=45, ha='right')
-        ax.set_ylabel('Importance')
-        ax.set_title('Top 10 Feature Importances (Random Forest)')
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        plt.tight_layout()
-        plt.savefig(out_dir / "feature_importance.png", dpi=300, bbox_inches='tight')
-        plt.close()
+            fig, ax = plt.subplots(figsize=(10, 6))
+            ax.bar(range(len(indices)), importances[indices], color='#2b2b2b', alpha=0.85)
+            ax.set_xticks(range(len(indices)))
+            ax.set_xticklabels([X.columns[i] for i in indices], rotation=45, ha='right')
+            ax.set_ylabel('Importance')
+            ax.set_title('Top 10 Feature Importances (Random Forest)')
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            plt.tight_layout()
+            plt.savefig(out_dir / "feature_importance.png", dpi=300, bbox_inches='tight')
+            plt.close()
         logger.info(f"  Saved: feature_importance.png")
     
     logger.info("\nAll visualizations generated successfully!")
