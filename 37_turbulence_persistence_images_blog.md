@@ -160,7 +160,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # Configuration
-NREL_API_KEY = "wpaaOciW3kYdcNMvRogmZEfdEueR52NS7g7Dxv0z"
+NREL_API_KEY = "key"
 NREL_API_URL = "https://developer.nrel.gov/api/wind-toolkit/v2/wind/wtk-bchrrr-v1-0-0-download.csv"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
