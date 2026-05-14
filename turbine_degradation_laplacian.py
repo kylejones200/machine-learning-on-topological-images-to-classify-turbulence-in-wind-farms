@@ -17,7 +17,6 @@ from sklearn.neighbors import NearestNeighbors
 from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import eigsh
 from pathlib import Path
-import warnings
 import logging
 import yaml
 
@@ -36,7 +35,6 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-warnings.filterwarnings('ignore')
 
 np.random.seed(config.get('data', {}).get('seed', 42))
 
