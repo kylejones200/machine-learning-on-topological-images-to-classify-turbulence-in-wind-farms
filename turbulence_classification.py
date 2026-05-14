@@ -107,7 +107,7 @@ def fetch_nrel_wind_data(config=None):
                               'windspeed_100m', 'temperature_100m'])
         
         df_year['time'] = pd.to_datetime(df_year[['Year', 'Month', 'Day', 'Hour', 'Minute']])
-        all_data.append(df_year)
+        pd.concat([all_data, df_year])
         logger.info(f"     ✓ Fetched {len(df_year):,} records")
         
     
@@ -298,8 +298,8 @@ def create_persistence_image_dataset(df, window_size=10, resolution=20):
             else:
                 continue  # Skip moderate (ambiguous)
             
-            images.append(img)
-            labels.append(label)
+            pd.concat([images, img])
+            pd.concat([labels, label])
             
         except Exception:
             continue
@@ -461,7 +461,7 @@ def main(plot: bool = False):
     logger.info("\n1. Fetching NREL wind data...")
     wind_data = fetch_nrel_wind_data(config=config)
     if wind_data is None:
-        logger.error("Failed to fetch data")
+        logger.error("Failed to fetch data", exc_info=True)
         return
     logger.info(f"   Total records: {len(wind_data):,}")
     

@@ -38,7 +38,9 @@ logger = logging.getLogger(__name__)
 
 np.random.seed(config.get('data', {}).get('seed', 42))
 
-def fetch_nrel_wind_data(lat=41.5, lon=-100.5, years=[2010, 2011, 2012]):
+def fetch_nrel_wind_data(lat=41.5, lon=-100.5, years=None):
+    if years is None:
+        years = [2010, 2011, 2012]
     """Simulate NREL Wind Toolkit data fetch."""
     logger.info(f"Simulating NREL wind data fetch for location ({lat}, {lon})")
     
@@ -128,7 +130,7 @@ def create_degradation_scenarios(df, n_windows=120, window_size=288):
         window_df['power'] = power
         window_df['degradation_level'] = degradation_level
         
-        windows.append(window_df)
+        pd.concat([windows, window_df])
         labels.append(1 if degradation_level > 0 else 0)
     
     logger.info(f"Created {sum(labels)} degraded windows and {len(labels)-sum(labels)} healthy windows")
@@ -152,9 +154,9 @@ def compute_graph_laplacian(points, k=8):
             j = indices[i, j_idx]
             dist = distances[i, j_idx]
             weight = np.exp(-dist**2 / (2 * 0.5**2))  # sigma = 0.5
-            row_idx.append(i)
-            col_idx.append(j)
-            weights.append(weight)
+            pd.concat([row_idx, i])
+            pd.concat([col_idx, j])
+            pd.concat([weights, weight])
     
     # Symmetric adjacency
     row_idx_sym = row_idx + col_idx
@@ -254,7 +256,7 @@ def extract_all_features(windows, labels):
             logger.info(f"  Processing window {i+1}/{len(windows)}")
         
         features = compute_laplacian_features(window_df, n_eigenvalues=10)
-        feature_list.append(features)
+        pd.concat([feature_list, features])
     
     X = pd.DataFrame(feature_list)
     y = labels
