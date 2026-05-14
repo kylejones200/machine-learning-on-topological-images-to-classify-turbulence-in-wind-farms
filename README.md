@@ -1,7 +1,7 @@
 # Machine Learning on Topological Images to Classify Turbulence in Wind Farms
 
-**Published:** 2025-11-10
-**Medium:** [https://medium.com/@kyle-t-jones/machine-learning-on-topological-images-to-classify-turbulence-in-wind-farms-796a70ae1f1b](https://medium.com/@kyle-t-jones/machine-learning-on-topological-images-to-classify-turbulence-in-wind-farms-796a70ae1f1b)
+Published: 2025-11-10
+Medium: [https://medium.com/@kyle-t-jones/machine-learning-on-topological-images-to-classify-turbulence-in-wind-farms-796a70ae1f1b](https://medium.com/@kyle-t-jones/machine-learning-on-topological-images-to-classify-turbulence-in-wind-farms-796a70ae1f1b)
 
 ## About
 

@@ -3,6 +3,7 @@ Turbulence Intensity Classification Using Persistence Images and CNNs
 Classifies high vs low turbulence from SCADA using topological deep learning
 """
 
+import os
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -44,7 +45,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # Configuration
-NREL_API_KEY = "key"
+NREL_API_KEY = os.getenv("NREL_API_KEY", "")
 NREL_API_URL = "https://developer.nrel.gov/api/wind-toolkit/v2/wind/wtk-bchrrr-v1-0-0-download.csv"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
