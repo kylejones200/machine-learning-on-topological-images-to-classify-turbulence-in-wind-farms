@@ -27,6 +27,7 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+config = load_config()
 # For persistence
 from ripser import ripser
 from sklearn.preprocessing import StandardScaler
@@ -50,8 +51,17 @@ NREL_API_URL = "https://developer.nrel.gov/api/wind-toolkit/v2/wind/wtk-bchrrr-v
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def fetch_nrel_wind_data(lat=41.5, lon=-93.5, years=[2017]):
+def fetch_nrel_wind_data(config=None):
     """Fetch wind data from NREL."""
+    if config is None:
+        config = {}
+    nrel = config.get('nrel', {})
+    lat = nrel.get('lat', 41.5)
+    lon = nrel.get('lon', -93.5)
+    years = nrel.get('years', [2017])
+    attributes = nrel.get('attributes', 'windspeed_100m,temperature_100m')
+    interval = nrel.get('interval', '60')
+    email = os.getenv('NREL_EMAIL', '')
     all_data = []
     
     for year in years:
@@ -60,12 +70,12 @@ def fetch_nrel_wind_data(lat=41.5, lon=-93.5, years=[2017]):
         params = {
             'api_key': NREL_API_KEY,
             'wkt': f'POINT({lon} {lat})',
-            'attributes': 'windspeed_100m,temperature_100m',
+            'attributes': attributes,
             'names': str(year),
             'utc': 'true',
             'leap_day': 'false',
-            'interval': '60',
-            'email': 'kyletjones@gmail.com'
+            'interval': interval,
+            'email': email
         }
         
         try:
@@ -453,7 +463,7 @@ def main(plot: bool = False):
     
     # 1. Fetch wind data
     logger.info("\n1. Fetching NREL wind data...")
-    wind_data = fetch_nrel_wind_data(lat=41.5, lon=-93.5, years=[2017, 2018])
+    wind_data = fetch_nrel_wind_data(config=config)
     if wind_data is None:
         logger.error("Failed to fetch data")
         return

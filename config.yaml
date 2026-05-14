@@ -17,3 +17,11 @@ output:
   figsize:
   - 8
   - 8
+nrel:
+  lat: 41.5
+  lon: -93.5
+  years:
+  - 2017
+  - 2018
+  attributes: windspeed_100m,temperature_100m
+  interval: '60'
