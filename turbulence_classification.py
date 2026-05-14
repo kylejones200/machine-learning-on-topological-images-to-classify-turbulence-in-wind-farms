@@ -4,6 +4,7 @@ Classifies high vs low turbulence from SCADA using topological deep learning
 """
 
 import os
+import bisect
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -12,6 +13,16 @@ from io import StringIO
 
 import logging
 import yaml
+
+
+_REGIME_CUTS = [3, 12]
+
+def _turbine_state(w: float, rated_power: float) -> tuple[float, float, float]:
+    """Return (target_power, target_rpm, target_pitch) for wind speed w."""
+    match bisect.bisect_right(_REGIME_CUTS, w):
+        case 0: return 0.0,                              0.0,              90.0
+        case 1: return rated_power * ((w-3)/9)**2.5,     10 + (w-3)*5,     5 + (12-w)*2
+        case _: return rated_power,                      55 + (w-12)*0.2,  2.0
 
 def load_config(config_path=None):
     """Load configuration from YAML file."""
@@ -161,18 +172,7 @@ def simulate_turbulence_and_turbine(wind_df, rated_power=2000):
         w = wind_turbulent[i]
         
         # Power curve
-        if w < 3:
-            target_power = 0
-            target_rpm = 0
-            target_pitch = 90
-        elif w < 12:
-            target_power = rated_power * ((w - 3) / (12 - 3)) ** 2.5
-            target_rpm = 10 + (w - 3) * 5
-            target_pitch = 5 + (12 - w) * 2
-        else:
-            target_power = rated_power
-            target_rpm = 55 + (w - 12) * 0.2
-            target_pitch = 2
+        target_power, target_rpm, target_pitch = _turbine_state(w, rated_power)
         
         # Dynamics with lag
         rotor_speed[i] = 0.85 * rotor_speed[i-1] + 0.15 * target_rpm
