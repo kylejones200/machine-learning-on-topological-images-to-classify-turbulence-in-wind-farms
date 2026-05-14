@@ -457,9 +457,7 @@ def main(plot: bool = False):
     np.random.seed(config.get('data', {}).get('seed', 42))
     torch.manual_seed(42)
     
-    logger.info("="*70)
     logger.info("Turbulence Classification Using Persistence Images & CNN")
-    logger.info("="*70)
     
     # 1. Fetch wind data
     logger.info("\n1. Fetching NREL wind data...")
@@ -549,16 +547,13 @@ def main(plot: bool = False):
     
     logger.info(f"   Saved visualizations to {out_dir}/")
     
-    logger.info("\n" + "="*70)
-    logger.info("TURBULENCE CLASSIFICATION COMPLETE")
-    logger.info("="*70)
+    logger.info("=== TURBULENCE CLASSIFICATION COMPLETE ===")
     logger.info(f"\nCNN on persistence images: {acc*100:.1f}% accuracy")
     logger.info(f"No specialized sensors required - SCADA only")
     logger.info(f"Enables:")
     logger.info(f"  - Turbulence-aware load monitoring")
     logger.info(f"  - Adaptive control strategies")
     logger.info(f"  - Site assessment validation")
-    logger.info("="*70)
 
 
 if __name__ == "__main__":
