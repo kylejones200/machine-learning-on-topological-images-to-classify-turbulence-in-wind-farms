@@ -203,7 +203,7 @@ def compute_laplacian_features(window_df, n_eigenvalues=10):
         n_eigs = min(n_eigenvalues, L.shape[0] - 2)
         eigenvalues, _ = eigsh(L, k=n_eigs, which='SM')
         eigenvalues = np.sort(eigenvalues)
-    except:
+    except Exception:
         eigenvalues = np.zeros(n_eigenvalues)
     
     features = {}

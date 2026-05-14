@@ -303,7 +303,7 @@ def create_persistence_image_dataset(df, window_size=10, resolution=20):
             images.append(img)
             labels.append(label)
             
-        except:
+        except Exception:
             continue
     
     images = np.array(images, dtype=np.float32)
