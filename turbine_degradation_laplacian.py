@@ -12,13 +12,12 @@ from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, classification_report, f1_score, roc_auc_score
+from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 from sklearn.neighbors import NearestNeighbors
 from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import eigsh
 from pathlib import Path
 import logging
-import yaml
 
 def load_config(config_path=None):
     """Load configuration from YAML file."""
@@ -167,7 +166,7 @@ def compute_graph_laplacian(points, k=8):
     
     # Degree matrix
     D = np.array(W.sum(axis=1)).flatten()
-    D_mat = csr_matrix((D, (range(n), range(n))), shape=(n, n))
+    csr_matrix((D, (range(n), range(n))), shape=(n, n))
     
     # Normalized Laplacian: L = I - D^{-1/2} W D^{-1/2}
     D_inv_sqrt = np.sqrt(1.0 / (D + 1e-10))
@@ -351,7 +350,7 @@ def generate_visualizations(windows, labels, X, y, results, out_dir, plot: bool 
         plt.tight_layout()
         plt.savefig(out_dir / "model_comparison.png", dpi=300, bbox_inches='tight')
         plt.close()
-        logger.info(f"  Saved: model_comparison.png")
+        logger.info("  Saved: model_comparison.png")
     
     # 2. Eigenvalue spectra comparison
         logger.info("2. Eigenvalue spectra comparison...")
@@ -371,7 +370,7 @@ def generate_visualizations(windows, labels, X, y, results, out_dir, plot: bool 
         plt.tight_layout()
         plt.savefig(out_dir / "eigenvalue_spectra.png", dpi=300, bbox_inches='tight')
         plt.close()
-        logger.info(f"  Saved: eigenvalue_spectra.png")
+        logger.info("  Saved: eigenvalue_spectra.png")
     
     # 3. Spectral gap distribution
         logger.info("3. Spectral gap distribution...")
@@ -388,7 +387,7 @@ def generate_visualizations(windows, labels, X, y, results, out_dir, plot: bool 
         plt.tight_layout()
         plt.savefig(out_dir / "spectral_gap_distribution.png", dpi=300, bbox_inches='tight')
         plt.close()
-        logger.info(f"  Saved: spectral_gap_distribution.png")
+        logger.info("  Saved: spectral_gap_distribution.png")
     
     # 4. Feature importance
         logger.info("4. Feature importance...")
@@ -408,7 +407,7 @@ def generate_visualizations(windows, labels, X, y, results, out_dir, plot: bool 
             plt.tight_layout()
             plt.savefig(out_dir / "feature_importance.png", dpi=300, bbox_inches='tight')
             plt.close()
-        logger.info(f"  Saved: feature_importance.png")
+        logger.info("  Saved: feature_importance.png")
     
     logger.info("\nAll visualizations generated successfully!")
 

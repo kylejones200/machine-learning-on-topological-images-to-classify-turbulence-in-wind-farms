@@ -12,7 +12,6 @@ import requests
 from io import StringIO
 
 import logging
-import yaml
 
 
 _REGIME_CUTS = [3, 12]
@@ -41,7 +40,6 @@ logger = logging.getLogger(__name__)
 config = load_config()
 # For persistence
 from ripser import ripser
-from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report, roc_auc_score
 
@@ -141,7 +139,7 @@ def simulate_turbulence_and_turbine(wind_df, rated_power=2000):
         h = hour[i]
         if 8 <= h < 16:  # Daytime, unstable
             ti[i] = np.random.uniform(0.16, 0.22)
-        elif 20 <= h or h < 4:  # Nighttime, stable
+        elif h >= 20 or h < 4:  # Nighttime, stable
             ti[i] = np.random.uniform(0.05, 0.09)
         else:  # Transition, neutral
             ti[i] = np.random.uniform(0.10, 0.14)
@@ -332,7 +330,7 @@ class PersistenceCNN(nn.Module):
     """CNN for persistence image classification."""
     
     def __init__(self, input_channels=2, num_classes=2):
-        super(PersistenceCNN, self).__init__()
+        super().__init__()
         
         # Convolutional layers
         self.conv1 = nn.Conv2d(input_channels, 16, kernel_size=3, padding=1)
@@ -547,11 +545,11 @@ def main(plot: bool = False):
     
     logger.info("=== TURBULENCE CLASSIFICATION COMPLETE ===")
     logger.info(f"\nCNN on persistence images: {acc*100:.1f}% accuracy")
-    logger.info(f"No specialized sensors required - SCADA only")
-    logger.info(f"Enables:")
-    logger.info(f"  - Turbulence-aware load monitoring")
-    logger.info(f"  - Adaptive control strategies")
-    logger.info(f"  - Site assessment validation")
+    logger.info("No specialized sensors required - SCADA only")
+    logger.info("Enables:")
+    logger.info("  - Turbulence-aware load monitoring")
+    logger.info("  - Adaptive control strategies")
+    logger.info("  - Site assessment validation")
 
 
 if __name__ == "__main__":
