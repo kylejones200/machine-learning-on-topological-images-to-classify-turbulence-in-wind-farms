@@ -1,0 +1,27 @@
+[project]
+name = "machine-learning-on-topological-images-to-classify-turbulence-in-wind-farms"
+version = "0.1.0"
+description = "Companion code for Medium article: machine learning on topological images to classify turbulence in wind farms"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "matplotlib>=3.10.9",
+    "numpy>=2.4.4",
+    "pandas>=2.3.3",
+    "pyyaml>=6.0.3",
+    "requests>=2.34.2",
+    "ripser>=0.6.0",
+    "scikit-learn>=1.8.0",
+    "scipy>=1.17.1",
+    "torch>=2.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
