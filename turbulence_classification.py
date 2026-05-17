@@ -323,8 +323,8 @@ def create_persistence_image_dataset(df, window_size=10, resolution=20):
             else:
                 continue  # Skip moderate (ambiguous)
 
-            pd.concat([images, img])
-            pd.concat([labels, label])
+            images.append(img)
+            labels.append(label)
 
         except Exception:
             continue
