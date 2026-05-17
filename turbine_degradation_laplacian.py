@@ -144,7 +144,7 @@ def create_degradation_scenarios(df, n_windows=120, window_size=288):
         window_df["power"] = power
         window_df["degradation_level"] = degradation_level
 
-        pd.concat([windows, window_df])
+        windows.append(window_df)
         labels.append(1 if degradation_level > 0 else 0)
 
     logger.info(
@@ -171,9 +171,9 @@ def compute_graph_laplacian(points, k=8):
             j = indices[i, j_idx]
             dist = distances[i, j_idx]
             weight = np.exp(-(dist**2) / (2 * 0.5**2))  # sigma = 0.5
-            pd.concat([row_idx, i])
-            pd.concat([col_idx, j])
-            pd.concat([weights, weight])
+            row_idx.append(i)
+            col_idx.append(j)
+            weights.append(weight)
 
     # Symmetric adjacency
     row_idx_sym = row_idx + col_idx
@@ -279,7 +279,7 @@ def extract_all_features(windows, labels):
             logger.info(f"  Processing window {i + 1}/{len(windows)}")
 
         features = compute_laplacian_features(window_df, n_eigenvalues=10)
-        pd.concat([feature_list, features])
+        feature_list.append(features)
 
     X = pd.DataFrame(feature_list)
     y = labels
