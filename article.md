@@ -125,7 +125,22 @@ Turbulence intensity governs wind turbine structural loads but requires expensiv
 The method works because turbulence creates characteristic topological signatures --- high turbulence produces complex trajectories with many loops and varied persistence, appearing as textured images that CNNs recognize. Multi-resolution analysis across one, five, and ten-minute windows captures the multi-scale nature of turbulent cascades, improving accuracy by detecting scale-dependent patterns. The learned representations in the CNN exceed hand-crafted features, demonstrating that deep learning can extract subtle topological patterns invisible to engineered approaches.
 
 For wind energy operations, this means transforming every turbine into a turbulence sensor at no incremental cost. The implications extend beyond wind energy to any application where expensive sensors limit deployment of monitoring systems. Topology plus deep learning can extract information already present in standard measurements but previously inaccessible. The patterns are there in the data. Persistence images make them visible. Neural networks make them actionable.
-### Complete Implementation 
+### Complete Implementation
+
+**`config.yaml`** holds site, years, and API field names. **`NREL_API_KEY`** and optional **`NREL_EMAIL`** live in **`.env`** (copy from `.env.example`).
+
+```yaml
+nrel:
+  api_key_env: NREL_API_KEY
+  email_env: NREL_EMAIL
+  lat: 41.5
+  lon: -93.5
+  years: [2017, 2018]
+  attributes: windspeed_100m,temperature_100m
+  interval: "60"
+  utc: true
+  leap_day: false
+```
 
 ```python
 """
@@ -138,6 +153,8 @@ import pandas as pd
 from pathlib import Path
 import requests
 from io import StringIO
+from dotenv import load_dotenv
+import yaml
 # For persistence
 from ripser import ripser
 from sklearn.preprocessing import StandardScaler
@@ -152,31 +169,40 @@ import torch.optim as optim
 import matplotlib.pyplot as plt
 
 
-# Configuration
-NREL_API_KEY = <YOUR_KEY_HERE>
-NREL_API_URL = "https://developer.nrel.gov/api/wind-toolkit/v2/wind/wtk-bchrrr-v1-0-0-download.csv"
+load_dotenv()
+config = yaml.safe_load(Path("config.yaml").read_text())
+nrel = config["nrel"]
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def fetch_nrel_wind_data(lat=41.5, lon=-93.5, years=[2017]):
-    """Fetch wind data from NREL."""
+
+def fetch_nrel_wind_data():
+    """Fetch wind data from NREL using config.yaml + environment variables."""
+    import os
+
     all_data = []
-    
-    for year in years:
+    url = nrel.get(
+        "url",
+        "https://developer.nrel.gov/api/wind-toolkit/v2/wind/wtk-bchrrr-v1-0-0-download.csv",
+    )
+    api_key = os.environ[nrel["api_key_env"]]
+    email = os.getenv(nrel.get("email_env", "NREL_EMAIL"), "")
+
+    for year in nrel["years"]:
         print(f"   Fetching year {year}...")
-        
+
         params = {
-            'api_key': NREL_API_KEY,
-            'wkt': f'POINT({lon} {lat})',
-            'attributes': 'windspeed_100m,temperature_100m',
-            'names': str(year),
-            'utc': 'true',
-            'leap_day': 'false',
-            'interval': '60',
-            'email': 'kyletjones@gmail.com'
+            "api_key": api_key,
+            "wkt": f"POINT({nrel['lon']} {nrel['lat']})",
+            "attributes": nrel["attributes"],
+            "names": str(year),
+            "utc": "true" if nrel.get("utc", True) else "false",
+            "leap_day": "true" if nrel.get("leap_day", False) else "false",
+            "interval": str(nrel["interval"]),
+            "email": email,
         }
-        
+
         try:
-            response = requests.get(NREL_API_URL, params=params, timeout=120)
+            response = requests.get(url, params=params, timeout=nrel.get("timeout_seconds", 120))
             response.raise_for_status()
             
             lines = response.text.strip().split('\n')
@@ -555,7 +581,7 @@ def main():
     
     # 1. Fetch wind data
     print("\n1. Fetching NREL wind data...")
-    wind_data = fetch_nrel_wind_data(lat=41.5, lon=-93.5, years=[2017, 2018])
+    wind_data = fetch_nrel_wind_data()
     if wind_data is None:
         print("Failed to fetch data")
         return

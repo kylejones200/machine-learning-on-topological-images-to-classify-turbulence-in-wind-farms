@@ -10,6 +10,7 @@ dependencies = [
     "matplotlib>=3.10.9",
     "numpy>=2.4.4",
     "pandas>=2.3.3",
+    "python-dotenv>=1.0.0",
     "pyyaml>=6.0.3",
     "requests>=2.34.2",
     "ripser>=0.6.0",

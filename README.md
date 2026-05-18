@@ -20,6 +20,14 @@ The original article export is saved as `article.md`.
 
 Add your `.ipynb`, `.py`, `.yaml`, `.js`, `.ts`, or other project files here.
 
+## Setup
+
+1. Copy `.env.example` to `.env` and set `NREL_API_KEY` (free at [developer.nrel.gov/signup](https://developer.nrel.gov/signup/)). Optionally set `NREL_EMAIL` for large downloads.
+2. Adjust non-secret NREL settings in `config.yaml` (`nrel.lat`, `nrel.lon`, `nrel.years`, etc.).
+3. Install dependencies: `uv sync` (or `pip install -e .`).
+
+Runnable scripts load `config.yaml` and read secrets from `.env` via `python-dotenv` (see `nrel_wtk.py`).
+
 ## Disclaimer
 
 Educational/demo code only. Not financial, safety, or engineering advice. Use at your own risk. Verify results independently before any production or operational use.
