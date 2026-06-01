@@ -25,7 +25,7 @@ def _iter_python_sources() -> list[Path]:
     for path in REPO_ROOT.rglob("*.py"):
         if any(part in SKIP_PARTS for part in path.parts):
             continue
-        if path.name.startswith("test_"):
+        if path.name.startswith("test_") or path.name.startswith("._"):
             continue
         if path.stat().st_size < 20:
             continue
