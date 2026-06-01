@@ -11,14 +11,7 @@ Measuring turbulence properly requires three-dimensional sonic anemometers that 
 
 This creates a problem for operational monitoring. Operators know turbulence matters but cannot measure it with existing sensors. They infer turbulence indirectly through power variability or rotor speed fluctuations, but these proxies are imperfect --- power variability could reflect turbulence or control actions or grid disturbances. Load monitoring systems that depend on knowing turbulence intensity cannot function without turbulence measurements, forcing operators to use conservative assumptions that overestimate loads and trigger unnecessary maintenance.
 
-## About
 
-Place the code for this article in this repository.
-The original article export is saved as `article.md`.
-
-## Files
-
-Add your `.ipynb`, `.py`, `.yaml`, `.js`, `.ts`, or other project files here.
 
 ## Setup
 

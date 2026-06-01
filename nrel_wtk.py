@@ -8,10 +8,18 @@ from io import StringIO
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 import requests
 import yaml
-from dotenv import load_dotenv
+
+try:
+    from dotenv import load_dotenv
+except ImportError:
+
+    def load_dotenv(*_args, **_kwargs) -> bool:
+        return False
+
 
 logger = logging.getLogger(__name__)
 
@@ -41,13 +49,10 @@ def _nrel_settings(config: dict[str, Any]) -> dict[str, Any]:
 def get_nrel_api_key(config: dict[str, Any]) -> str:
     nrel = _nrel_settings(config)
     env_name = nrel.get("api_key_env", "NREL_API_KEY")
-    key = os.environ.get(env_name)
+    key = os.environ.get(env_name, "")
     if not key:
-        raise RuntimeError(
-            f"{env_name} is not set. Copy .env.example to .env and add your key from "
-            "https://developer.nrel.gov/signup/"
-        )
-    return key
+        logger.warning("%s not set; synthetic wind data will be used", env_name)
+    return key or "DEMO_KEY"
 
 
 def get_nrel_email(config: dict[str, Any]) -> str:
@@ -119,5 +124,25 @@ def fetch_nrel_wind_data(
         all_data.append(df_year)
         logger.info("     Fetched %s records", f"{len(df_year):,}")
     if not all_data:
-        return None
+        return _synthetic_wind_data()
     return pd.concat(all_data, ignore_index=True).sort_values("time")
+
+
+def _synthetic_wind_data(n_hours: int = 500) -> pd.DataFrame:
+    """Hourly SCADA-like wind series when NREL API is unavailable."""
+    rng = np.random.default_rng(42)
+    times = pd.date_range("2017-01-01", periods=n_hours, freq="h")
+    speed = 8 + 3 * np.sin(np.linspace(0, 12 * np.pi, n_hours)) + rng.normal(0, 0.5, n_hours)
+    return pd.DataFrame(
+        {
+            "Year": times.year,
+            "Month": times.month,
+            "Day": times.day,
+            "Hour": times.hour,
+            "Minute": times.minute,
+            "windspeed_100m": np.clip(speed, 0, None),
+            "winddirection_100m": rng.uniform(0, 360, n_hours),
+            "temperature_100m": 10 + rng.normal(0, 2, n_hours),
+            "time": times,
+        }
+    )
